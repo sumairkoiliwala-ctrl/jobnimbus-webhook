@@ -1,0 +1,12 @@
+{
+  "name": "jobnimbus-webhook",
+  "version": "1.0.0",
+  "description": "JobNimbus webhook handler for automatic status updates",
+  "main": "api/webhook.js",
+  "scripts": {
+    "dev": "vercel dev"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  }
+}
