@@ -1,65 +1,11 @@
 // ============================================================
-// JobNimbus → Vercel Webhook Handler
-// Updates job status when custom fields are modified
-// ============================================================
-// SETUP:
-// 1. Add JOBNIMBUS_API_KEY to Vercel environment variables
-// 2. Add this webhook URL in JobNimbus:
-//    Settings → Integrations → Webhooks → + Add Webhook
-//    URL: https://YOUR-VERCEL-URL/api/webhook
-//    Events: Job Modified
+// JobNimbus → Vercel Webhook Handler v2
+// Logs full payload + updates job status on field changes
 // ============================================================
 
-const JOBNIMBUS_API_KEY = process.env.JOBNIMBUS_API_KEY; // Add in Vercel dashboard
+const JOBNIMBUS_API_KEY = process.env.JOBNIMBUS_API_KEY;
 const JOBNIMBUS_API_URL = "https://app.jobnimbus.com/api1/jobs";
 
-// ── Property → Status Mapping ────────────────────────────────
-const FIELD_STATUS_MAP = [
-  {
-    field: "cf_JobInspectionStatus",
-    value: "Scheduled",
-    record_type_name: "Storm Restoration – Sales",
-    status_name: "Inspection Scheduled – Awaiting Appointment",
-  },
-  {
-    field: "cf_JobInspectionStatus",
-    value: "Completed",
-    record_type_name: "Storm Restoration – Sales",
-    status_name: "Inspection Complete – Awaiting Review",
-  },
-  {
-    field: "cf_JobInspectionDate",
-    value: "filled",
-    record_type_name: "Storm Restoration – Sales",
-    status_name: "Inspection Scheduled – Awaiting Appointment",
-  },
-  {
-    field: "cf_JobInspectionCompleted",
-    value: "filled",
-    record_type_name: "Storm Restoration – Sales",
-    status_name: "Inspection Complete – Awaiting Review",
-  },
-  {
-    field: "cf_JobAdjusterDate",
-    value: "filled",
-    record_type_name: "Storm Restoration – Claim",
-    status_name: "Adjuster Date Set – Homeowner Notified",
-  },
-  {
-    field: "cf_JobBuildScheduledDate",
-    value: "filled",
-    record_type_name: "Storm Restoration – Production",
-    status_name: "Build Scheduled",
-  },
-  {
-    field: "cf_JobBuildCompleteDate",
-    value: "filled",
-    record_type_name: "Storm Restoration – Production",
-    status_name: "Build Complete",
-  },
-];
-
-// ── Update Job Status via API ─────────────────────────────────
 async function updateJobStatus(jnid, record_type_name, status_name) {
   const response = await fetch(`${JOBNIMBUS_API_URL}/${jnid}`, {
     method: "PUT",
@@ -67,27 +13,19 @@ async function updateJobStatus(jnid, record_type_name, status_name) {
       Authorization: `Bearer ${JOBNIMBUS_API_KEY}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      record_type_name,
-      status_name,
-    }),
+    body: JSON.stringify({ record_type_name, status_name }),
   });
-
   const data = await response.json();
-
   if (!response.ok) {
     throw new Error(`API Error ${response.status}: ${JSON.stringify(data)}`);
   }
-
   return data;
 }
 
-// ── Check if field is filled ──────────────────────────────────
 function isFilled(value) {
   return value !== null && value !== undefined && value !== "" && value !== 0;
 }
 
-// ── Main Handler ──────────────────────────────────────────────
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -96,68 +34,58 @@ export default async function handler(req, res) {
   try {
     const job = req.body;
 
+    // ── LOG FULL PAYLOAD ──────────────────────────────────────
+    console.log("=== JOBNIMBUS WEBHOOK RECEIVED ===");
+    console.log("Full payload:", JSON.stringify(job, null, 2));
+    console.log("=== END PAYLOAD ===");
+
     if (!job || !job.jnid) {
+      console.log("ERROR: Missing jnid in payload");
       return res.status(400).json({ error: "Invalid payload — missing jnid" });
     }
 
     const jnid = job.jnid;
-    const results = [];
+    console.log(`Job ID: ${jnid}`);
+    console.log(`Job Type: ${job.record_type_name}`);
+    console.log(`Job Status: ${job.status_name}`);
+    console.log(`All keys in payload: ${Object.keys(job).join(", ")}`);
 
-    console.log(`Processing webhook for job: ${jnid}`);
-    console.log(`Job type: ${job.record_type_name}`);
-    console.log(`Job status: ${job.status_name}`);
+    // ── FIELD → STATUS MAP ────────────────────────────────────
+    // We log all field values to find the correct key names
+    const fieldsToCheck = [
+      "cf_JobInspectionStatus",
+      "Inspection Status",
+      "inspection_status",
+      "InspectionStatus",
+      "cf_inspection_status",
+      "cf_JobInspectionDate",
+      "Inspection Date",
+      "inspection_date",
+      "cf_JobInspectionCompleted",
+      "Inspection Completed",
+      "cf_JobAdjusterDate",
+      "Adjuster Date",
+      "adjuster_date",
+      "cf_JobBuildScheduledDate",
+      "Build Scheduled Date",
+      "cf_JobBuildCompleteDate",
+      "Build Complete Date",
+    ];
 
-    for (const mapping of FIELD_STATUS_MAP) {
-      const fieldValue = job[mapping.field];
-
-      let shouldUpdate = false;
-
-      if (mapping.value === "filled") {
-        shouldUpdate = isFilled(fieldValue);
-      } else {
-        shouldUpdate = fieldValue === mapping.value;
-      }
-
-      if (
-        shouldUpdate &&
-        job.record_type_name === mapping.record_type_name
-      ) {
-        if (job.status_name === mapping.status_name) {
-          console.log(`Skipping — already at status: ${mapping.status_name}`);
-          continue;
-        }
-
-        console.log(`Updating job ${jnid} → ${mapping.status_name}`);
-
-        const result = await updateJobStatus(
-          jnid,
-          mapping.record_type_name,
-          mapping.status_name
-        );
-
-        results.push({
-          field: mapping.field,
-          status_name: mapping.status_name,
-          success: true,
-          result,
-        });
-
-        break;
+    console.log("=== CHECKING FIELD VALUES ===");
+    for (const field of fieldsToCheck) {
+      if (job[field] !== undefined) {
+        console.log(`FOUND → ${field}: ${job[field]}`);
       }
     }
-
-    if (results.length === 0) {
-      return res.status(200).json({
-        message: "No matching field conditions — no update needed",
-        jnid,
-      });
-    }
+    console.log("=== END FIELD CHECK ===");
 
     return res.status(200).json({
-      message: "Job status updated successfully",
+      message: "Webhook received and logged — check Vercel logs for payload",
       jnid,
-      updates: results,
+      received_keys: Object.keys(job),
     });
+
   } catch (error) {
     console.error("Webhook handler error:", error);
     return res.status(500).json({
