@@ -1,16 +1,12 @@
 const JOBNIMBUS_API_KEY = process.env.JOBNIMBUS_API_KEY;
 const JOBNIMBUS_API_URL = "https://app.jobnimbus.com/api1/jobs";
 
-/**
- * Status to JobNimbus group mapping.
- * These are based on your status/group list.
- */
 const STATUS_GROUP_MAP = {
   "New Lead – Uncontacted": ["Sales Rep"],
   "Contact Attempted – Awaiting Response": ["Sales Rep"],
   "Contact Made – Pre-Qualified": ["Sales Rep"],
   "Inspection Scheduled – Awaiting Appointment": ["Sales Rep"],
-  "Inspection Confirmed – 24 hr Reminder Sent": ["Sales Rep"],
+  "Inspection Confirmed – 24hr Reminder Sent": ["Sales Rep"],
   "Inspection Complete – Awaiting Review": ["Sales Rep"],
   "Photos Uploaded – QC Complete": ["Sales Rep"],
   "Damage Found – Contingency Needed": ["Sales Rep"],
@@ -48,24 +44,36 @@ const STATUS_GROUP_MAP = {
   "Job Cancelled / Closed-Lost": ["Sales Rep"],
 };
 
-/**
- * Group to JobNimbus owner/user IDs.
- * For now, we only have the Sales Rep ID.
- */
 const GROUP_OWNER_MAP = {
   "Sales Rep": [
-    { id: "f0289953141744e3aff019ac894e9b21" },
+    { id: "mmdza6lby9ssyqk3hmu0p34" }, // Ashley Hahne
+    { id: "f0289953141744e3aff019ac894e9b21" }, // Grayson Colton
   ],
 };
 
+function normalizeStatus(value) {
+  return String(value || "")
+    .replace(/–/g, "-")
+    .replace(/—/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function getOwnersByStatus(statusName) {
-  const groups = STATUS_GROUP_MAP[statusName] || [];
+  const normalizedIncomingStatus = normalizeStatus(statusName);
+
+  const matchedStatus = Object.keys(STATUS_GROUP_MAP).find((mappedStatus) => {
+    return normalizeStatus(mappedStatus) === normalizedIncomingStatus;
+  });
+
+  const groups = matchedStatus ? STATUS_GROUP_MAP[matchedStatus] : [];
 
   const owners = groups.flatMap((groupName) => {
     return GROUP_OWNER_MAP[groupName] || [];
   });
 
   return {
+    matchedStatus,
     groups,
     owners,
   };
@@ -93,12 +101,13 @@ export default async function handler(req, res) {
     });
   }
 
-  const { groups, owners } = getOwnersByStatus(job.status_name);
+  const { matchedStatus, groups, owners } = getOwnersByStatus(job.status_name);
 
   return res.status(200).json({
     message: "Status mapped to assignee owners",
     jnid: job.jnid,
     status_name: job.status_name,
+    matched_status: matchedStatus || null,
     groups,
     owners,
   });
