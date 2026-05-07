@@ -79,6 +79,27 @@ function getOwnersByStatus(statusName) {
   };
 }
 
+async function updateJobOwners(jnid, owners) {
+  const response = await fetch(`${JOBNIMBUS_API_URL}/${jnid}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${JOBNIMBUS_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      owners,
+    }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(`JobNimbus owner update failed ${response.status}: ${JSON.stringify(data)}`);
+  }
+
+  return data;
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({
@@ -86,29 +107,63 @@ export default async function handler(req, res) {
     });
   }
 
-  const job = req.body;
+  try {
+    const job = req.body;
 
-  if (!job || !job.jnid) {
-    return res.status(400).json({
-      error: "Missing jnid",
-    });
-  }
+    if (!job || !job.jnid) {
+      return res.status(400).json({
+        error: "Missing jnid",
+      });
+    }
 
-  if (!job.status_name) {
-    return res.status(400).json({
-      error: "Missing status_name",
+    if (!job.status_name) {
+      return res.status(400).json({
+        error: "Missing status_name",
+        jnid: job.jnid,
+      });
+    }
+
+    const { matchedStatus, groups, owners } = getOwnersByStatus(job.status_name);
+
+    if (!matchedStatus) {
+      return res.status(200).json({
+        message: "No matching status found",
+        jnid: job.jnid,
+        status_name: job.status_name,
+        matched_status: null,
+        groups: [],
+        owners: [],
+        updated: false,
+      });
+    }
+
+    if (!owners.length) {
+      return res.status(200).json({
+        message: "Status matched, but no owners configured for group",
+        jnid: job.jnid,
+        status_name: job.status_name,
+        matched_status: matchedStatus,
+        groups,
+        owners: [],
+        updated: false,
+      });
+    }
+
+    const updateResult = await updateJobOwners(job.jnid, owners);
+
+    return res.status(200).json({
+      message: "Job owners updated successfully",
       jnid: job.jnid,
+      status_name: job.status_name,
+      matched_status: matchedStatus,
+      groups,
+      owners,
+      updated: true,
+      jobnimbus_response: updateResult,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: error.message,
     });
   }
-
-  const { matchedStatus, groups, owners } = getOwnersByStatus(job.status_name);
-
-  return res.status(200).json({
-    message: "Status mapped to assignee owners",
-    jnid: job.jnid,
-    status_name: job.status_name,
-    matched_status: matchedStatus || null,
-    groups,
-    owners,
-  });
 }
