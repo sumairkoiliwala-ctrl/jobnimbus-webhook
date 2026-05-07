@@ -2,15 +2,19 @@ const JOBNIMBUS_API_KEY = process.env.JOBNIMBUS_API_KEY;
 const JOBNIMBUS_API_BASE_URL = "https://app.jobnimbus.com/api1";
 
 const TEST_ENDPOINTS = [
-  "/users",
-  "/team",
-  "/teams",
-  "/groups",
-  "/settings/groups",
-  "/settings/team",
-  "/settings/users",
-  "/profile",
-  "/me",
+  "/accounts",
+  "/account",
+  "/account/settings",
+  "/settings",
+  "/settings/profile",
+  "/settings/team-members",
+  "/team-members",
+  "/employees",
+  "/staff",
+  "/salesreps",
+  "/sales_reps",
+  "/contacts",
+  "/jobs",
 ];
 
 async function testEndpoint(path) {
