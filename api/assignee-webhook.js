@@ -8,7 +8,24 @@ export default async function handler(req, res) {
     });
   }
 
+  const job = req.body;
+
+  if (!job || !job.jnid) {
+    return res.status(400).json({
+      error: "Missing jnid",
+    });
+  }
+
+  if (!job.status_name) {
+    return res.status(400).json({
+      error: "Missing status_name",
+      jnid: job.jnid,
+    });
+  }
+
   return res.status(200).json({
-    message: "Assignee webhook is working",
+    message: "Assignee webhook received job data",
+    jnid: job.jnid,
+    status_name: job.status_name,
   });
 }
