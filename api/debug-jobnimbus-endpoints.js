@@ -23,19 +23,20 @@ async function testEndpoint(path) {
       },
     });
 
-    let data;
+    const rawBody = await response.text();
 
+    let parsedBody;
     try {
-      data = await response.json();
+      parsedBody = JSON.parse(rawBody);
     } catch {
-      data = await response.text();
+      parsedBody = rawBody;
     }
 
     return {
       path,
       status: response.status,
       ok: response.ok,
-      sample: response.ok ? data : data,
+      body: parsedBody,
     };
   } catch (error) {
     return {
