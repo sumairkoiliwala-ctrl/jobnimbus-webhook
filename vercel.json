@@ -3,10 +3,6 @@
     "api/webhook.js": {
       "memory": 128,
       "maxDuration": 10
-    },
-    "api/assignee-webhook.js": {
-      "memory": 128,
-      "maxDuration": 10
     }
   }
 }
