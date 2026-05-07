@@ -1,3 +1,5 @@
+// JobNimbus Webhook Handler v3 — Connected via GitHub
+
 const JOBNIMBUS_API_KEY = process.env.JOBNIMBUS_API_KEY;
 const JOBNIMBUS_API_URL = "https://app.jobnimbus.com/api1/jobs";
 
