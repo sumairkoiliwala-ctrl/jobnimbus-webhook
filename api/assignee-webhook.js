@@ -1,6 +1,49 @@
 const JOBNIMBUS_API_KEY = process.env.JOBNIMBUS_API_KEY;
 const JOBNIMBUS_API_URL = "https://app.jobnimbus.com/api1/jobs";
 
+const STATUS_GROUP_MAP = {
+  "New Lead – Uncontacted": ["Sales Rep"],
+  "Contact Attempted – Awaiting Response": ["Sales Rep"],
+  "Contact Made – Pre-Qualified": ["Sales Rep"],
+  "Inspection Scheduled – Awaiting Appointment": ["Sales Rep"],
+  "Inspection Confirmed – 24 hr Reminder Sent": ["Sales Rep"],
+  "Inspection Complete – Awaiting Review": ["Sales Rep"],
+  "Photos Uploaded – QC Complete": ["Sales Rep"],
+  "Damage Found – Contingency Needed": ["Sales Rep"],
+  "Contingency Signed – Awaiting Claim Filing": ["Sales Rep"],
+
+  "Claim Filed – Awaiting Adjuster Date": ["Project Managers"],
+  "Adjuster Date Set – Homeowner Notified": ["Project Managers"],
+  "Adjuster Meeting Complete – Awaiting Estimate": ["Project Managers"],
+
+  "Estimate Received – Initial Review": ["Estimator"],
+  "Supplement Needed": ["Estimator"],
+  "Supplement Submitted – Awaiting Response": ["Estimator"],
+  "Supplement Rejected / Partial Approval": ["Estimator"],
+  "Supplement Approved – Full Scope Confirmed": ["Estimator"],
+
+  "Permit Pending": ["Production Coordinator"],
+  "Mortgage Check / Funding Verified": ["Finance", "Production Coordinator"],
+  "Material Selection Complete – Awaiting Order": ["Production Coordinator"],
+  "Material Order Placed": ["Production Coordinator"],
+  "Build Scheduled": ["Production Coordinator"],
+
+  "Build Complete": ["Production Manager"],
+
+  "Awaiting Final Walkthrough": ["Project Managers"],
+  "Walkthrough Complete – Punch List in Progress": ["Project Managers"],
+  "Punch List Complete – Awaiting Invoice": ["Finance"],
+  "Final Payment Received & Lien Waiver Signed": ["Finance"],
+
+  "CSAT Survey & Referral Program Sent": ["Marketing"],
+  "Warranty Registered": ["Production Coordinator"],
+
+  "Claim Denied": ["Project Managers"],
+  "Re-Inspection Required": ["Project Managers"],
+  "Appeal in Progress": ["Estimator", "Project Managers"],
+  "Job Cancelled / Closed-Lost": ["Sales Rep"],
+};
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({
@@ -23,9 +66,12 @@ export default async function handler(req, res) {
     });
   }
 
+  const groups = STATUS_GROUP_MAP[job.status_name] || [];
+
   return res.status(200).json({
-    message: "Assignee webhook received job data",
+    message: "Status mapped to assignee group",
     jnid: job.jnid,
     status_name: job.status_name,
+    groups,
   });
 }
